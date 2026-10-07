@@ -1,0 +1,8 @@
+{
+  "appId": "fr.flulivre.app",
+  "appName": "Flulivre",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  }
+}

@@ -1,0 +1,9 @@
+# Dépendances installées par l'utilisateur (chemin APK)
+node_modules/
+
+# Générés : ne pas committer
+www/            # copie web pour Capacitor (npm run build:www)
+android/        # projet Android généré par `npx cap add android`
+ios/            # projet iOS généré par `npx cap add ios`
+*.apk
+*.aab

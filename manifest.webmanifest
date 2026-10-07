@@ -1,0 +1,16 @@
+{
+  "name": "Flulivre — Livres audio & lecture à voix haute",
+  "short_name": "Flulivre",
+  "description": "Lisez et écoutez vos livres : livres audio (MP3…), EPUB, PDF et textes lus à voix haute, avec reprise là où vous vous êtes arrêté.",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0e1116",
+  "theme_color": "#0e1116",
+  "icons": [
+    { "src": "icons/icon-512.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "1024x1024", "type": "image/png", "purpose": "maskable" }
+  ]
+}

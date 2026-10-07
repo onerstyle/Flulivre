@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Flulivre — Livres audio &amp; lecture à voix haute</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎧</text></svg>">
+  <link rel="stylesheet" href="css/styles.css">
+
+  <!-- Application installable (PWA) : manifeste, icônes, thème -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0e1116">
+  <link rel="apple-touch-icon" href="icons/icon-512.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <!-- Bibliothèques tierces (chargées par le navigateur depuis un CDN) :
+       JSZip      → lecture des fichiers EPUB (qui sont des ZIP)
+       pdf.js     → extraction du texte des PDF
+       Tesseract  → reconnaissance de caractères (OCR) des PDF scannés -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+</head>
+<body>
+
+  <!-- ══════════════ Barre supérieure ══════════════ -->
+  <header class="topbar">
+    <button id="btn-home" class="brand" title="Accueil">🎧 <span>Flulivre</span></button>
+    <input id="search" type="search" placeholder="Rechercher un titre, un auteur…" autocomplete="off">
+    <button id="btn-theme" class="chip" title="Thème clair / sombre">🌙</button>
+    <button id="btn-import" class="btn-primary">＋ Importer</button>
+    <input id="file-input" type="file" hidden multiple
+           accept=".epub,.pdf,.txt,.text,.mp3,.m4a,.aac,.flac,.ogg,.oga,.opus,.wav,.webm">
+  </header>
+
+  <!-- Panneau de progression des imports -->
+  <div id="import-panel" aria-live="polite"></div>
+
+  <!-- ══════════════ Vue Bibliothèque ══════════════ -->
+  <main id="view-library">
+    <div class="library-head">
+      <h2>Ma bibliothèque</h2>
+      <span id="lib-count" class="muted"></span>
+      <div class="lib-actions">
+        <button id="btn-export" class="chip" title="Télécharger une sauvegarde complète de la bibliothèque">💾 Exporter</button>
+        <button id="btn-restore" class="chip" title="Restaurer une sauvegarde Flulivre (.zip)">📂 Importer une sauvegarde</button>
+        <input type="file" id="restore-input" hidden accept=".zip,application/zip,application/x-zip-compressed">
+      </div>
+    </div>
+
+    <div id="library-empty" class="empty" hidden>
+      <div class="empty-icon">📚</div>
+      <h3>Votre bibliothèque est vide</h3>
+      <p>Importez un livre audio (MP3, M4A…), un ebook (EPUB), un PDF ou un fichier texte.<br>
+         Les EPUB, PDF et textes seront <strong>lus à voix haute</strong> par la synthèse vocale.<br>
+         Vous pouvez aussi glisser-déposer vos fichiers n'importe où sur la page.</p>
+      <div class="empty-actions">
+        <button id="btn-import-empty" class="btn-primary">＋ Importer des livres</button>
+        <button id="btn-sample" class="btn-ghost">🎁 Essayer avec un livre d'exemple</button>
+      </div>
+    </div>
+
+    <div id="library-grid" class="grid"></div>
+  </main>
+
+  <!-- ══════════════ Vue Lecteur ══════════════ -->
+  <main id="view-player" hidden>
+    <div class="player-wrap">
+      <div class="player-main">
+        <button id="btn-back" class="icon-btn back-btn" title="Retour à la bibliothèque">←</button>
+
+        <div class="now-playing">
+          <img id="p-cover" alt="Couverture du livre">
+          <div class="p-meta">
+            <span id="p-format" class="badge"></span>
+            <h1 id="p-title"></h1>
+            <p id="p-author" class="muted"></p>
+          </div>
+        </div>
+
+        <div id="p-tts-info" class="p-subinfo" hidden></div>
+
+        <div class="seek-row">
+          <span id="p-time-cur" class="time-label">0:00</span>
+          <input type="range" id="p-seek" min="0" max="100" value="0" step="1">
+          <span id="p-time-end" class="time-label">0:00</span>
+        </div>
+
+        <div class="controls">
+          <button id="btn-prev" class="ctrl-btn" title="Reculer">−30 s</button>
+          <button id="btn-play" class="play-btn" title="Lecture / Pause">▶</button>
+          <button id="btn-next" class="ctrl-btn" title="Avancer">+30 s</button>
+        </div>
+
+        <div class="settings-row">
+          <label class="setting">Vitesse
+            <select id="p-rate"></select>
+          </label>
+          <label class="setting" id="voice-wrap" hidden>Voix
+            <select id="p-voice"></select>
+          </label>
+          <button id="btn-ai" class="chip" hidden title="Choisir le narrateur (voix de l'appareil ou ElevenLabs)">🎙️ Narrateur</button>
+          <div class="sleep-wrap">
+            <button id="btn-sleep" class="chip">🌙 Minuteur</button>
+            <div id="sleep-menu" class="menu" hidden></div>
+          </div>
+        </div>
+
+        <!-- Chapitres d'un livre audio multi-pistes -->
+        <div id="p-audio-chapters" class="chapters-box" hidden>
+          <button id="btn-prev-track" class="chip" title="Chapitre précédent">‹</button>
+          <select id="p-audio-tracks" title="Aller à un chapitre"></select>
+          <button id="btn-next-track" class="chip" title="Chapitre suivant">›</button>
+        </div>
+      </div>
+
+      <!-- Panneau de lecture synchronisée (livres texte lus à voix haute) -->
+      <aside id="reader-pane" hidden>
+        <div class="reader-head">
+          <span class="reader-title">📖 Lecture synchronisée</span>
+          <div class="reader-nav">
+            <button id="btn-font-minus" class="chip" title="Réduire la taille du texte">A−</button>
+            <button id="btn-font-plus" class="chip" title="Agrandir le texte">A+</button>
+            <button id="btn-prev-chapter" class="chip" title="Chapitre précédent">‹</button>
+            <select id="p-chapters" title="Aller à un chapitre"></select>
+            <button id="btn-next-chapter" class="chip" title="Chapitre suivant">›</button>
+          </div>
+        </div>
+        <div id="p-reader-text"></div>
+      </aside>
+    </div>
+  </main>
+
+  <!-- ══════════════ Mini-lecteur persistant ══════════════ -->
+  <footer id="miniplayer" hidden>
+    <div id="mp-progress"><div></div></div>
+    <div class="mp-body">
+      <img id="mp-cover" alt="">
+      <div class="mp-info">
+        <strong id="mp-title"></strong>
+        <span id="mp-sub" class="muted"></span>
+      </div>
+      <button id="mp-play" class="icon-btn" title="Lecture / Pause">▶</button>
+    </div>
+  </footer>
+
+  <!-- Modale (OCR, confirmations) -->
+  <div id="modal-root" hidden></div>
+
+  <!-- Notifications -->
+  <div id="toast" hidden></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

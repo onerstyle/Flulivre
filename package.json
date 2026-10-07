@@ -1,0 +1,12 @@
+{
+  "name": "flulivre",
+  "version": "1.0.0",
+  "description": "Flulivre — lecteur de livres audio et lecture à voix haute (EPUB, PDF, TXT) façon Audible.",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "build:www": "node scripts/build-www.js"
+  },
+  "license": "MIT",
+  "private": true
+}
